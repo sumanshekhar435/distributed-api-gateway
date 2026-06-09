@@ -1,3 +1,58 @@
+server:
+  port: 8080
+
 spring:
   application:
-    name: gateway-service
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+services:
+  auth-url: ${AUTH_SERVICE_URL:http://localhost:8083}
+  order-url: ${ORDER_SERVICE_URL:http://localhost:8081}
+  product-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+
+jwt:
+  secret: ${JWT_SECRET:MySecretKey123456789012345678901234567890Ab}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderCircuitBreaker:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      productCircuitBreaker:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 15s
+        permittedCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,gateway
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://localhost:9411}/api/v2/spans
+
+logging:
+  level:
+    com.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO

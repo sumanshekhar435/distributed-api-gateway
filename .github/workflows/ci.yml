@@ -1,0 +1,93 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ── Job 1: Test all services ──────────────────────────────
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Build & Test gateway-service
+        working-directory: ./gateway-service
+        run: mvn clean compile -B
+
+      - name: Build & Test auth-service
+        working-directory: ./auth-service
+        run: mvn clean compile -B
+
+      - name: Build & Test order-service
+        working-directory: ./order-service
+        run: mvn clean compile -B
+
+      - name: Build & Test product-service
+        working-directory: ./product-service
+        run: mvn clean compile -B
+
+  # ── Job 2: Docker Build (only on main) ───────────────────
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Build gateway JAR
+        working-directory: ./gateway-service
+        run: mvn package -DskipTests -B
+
+      - name: Build auth JAR
+        working-directory: ./auth-service
+        run: mvn package -DskipTests -B
+
+      - name: Build order JAR
+        working-directory: ./order-service
+        run: mvn package -DskipTests -B
+
+      - name: Build product JAR
+        working-directory: ./product-service
+        run: mvn package -DskipTests -B
+
+      - name: Build Docker images
+        run: docker-compose build
+
+      - name: Verify images built
+        run: docker images | grep distributed

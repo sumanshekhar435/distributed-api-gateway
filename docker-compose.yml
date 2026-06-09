@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8083:8083"
+    environment:
+      - JWT_SECRET=MySecretKey123456789012345678901234567890Ab
+      - ZIPKIN_URL=http://zipkin:9411
+    depends_on:
+      - zipkin
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8081:8081"
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    depends_on:
+      - zipkin
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    depends_on:
+      - zipkin
+
+  api-gateway:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=redis
+      - AUTH_SERVICE_URL=http://auth-service:8083
+      - ORDER_SERVICE_URL=http://order-service:8081
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - ZIPKIN_URL=http://zipkin:9411
+      - JWT_SECRET=MySecretKey123456789012345678901234567890Ab
+    depends_on:
+      - redis
+      - auth-service
+      - order-service
+      - product-service
