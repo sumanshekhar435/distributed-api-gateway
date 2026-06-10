@@ -8,6 +8,8 @@ A production-grade API Gateway built with Spring Boot, implementing JWT authenti
 - Gateway checks JWT token, applies rate limiting, circuit breaker
 - Routes to Auth Service 8083, Order Service 8081, Product Service 8082
 
+![Architecture Diagram](docs/architecture-diagram.svg)
+
 ## Features
 
 - API Gateway and Routing via Spring Cloud Gateway
